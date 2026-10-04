@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Equilibrium — Medication & Symptom Tracker</title>
+  
+  <!-- Tailwind CSS CDN with class-based Dark Mode -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              200: '#99f6e4',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+              950: '#042f2e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Range Slider Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      border-radius: 9999px;
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .dark input[type=range]::-webkit-slider-runnable-track {
+      background: #1e293b;
+      border: 1px solid #334155;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 22px;
+      width: 22px;
+      border-radius: 50%;
+      background: #0f766e;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -7px;
+      transition: transform 0.15s ease, background-color 0.2s ease;
+    }
+    .dark input[type=range]::-webkit-slider-thumb {
+      background: #14b8a6;
+      border: 3px solid #0f172a;
+      box-shadow: 0 0 8px rgba(20, 184, 166, 0.4);
+    }
+    input[type=range]::-moz-range-thumb {
+      height: 22px;
+      width: 22px;
+      border-radius: 50%;
+      background: #0f766e;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+    }
+    .dark input[type=range]::-moz-range-thumb {
+      background: #14b8a6;
+      border: 3px solid #0f172a;
+    }
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 320px;
+    }
+    @media (min-width: 768px) {
+      .chart-container {
+        height: 380px;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-full flex flex-col font-sans bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased selection:bg-brand-100 selection:text-brand-900 transition-colors duration-200">
+  
+  <!-- Top App Navigation Bar -->
+  <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors duration-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo and App Title -->
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-700 to-teal-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+            <i data-lucide="activity" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">Equilibrium</h1>
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800">Sept 29+</span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Daily Vilazodone & Symptom Tracker</p>
+          </div>
+        </div>
+
+        <!-- Controls: Scale Guidance & Dark Mode Switch -->
+        <div class="flex items-center gap-3">
+          <!-- Scale Guidance Pill -->
+          <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span>1 = Severe Distress</span>
+            <span class="text-slate-300 dark:text-slate-600">|</span>
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span>10 = Peak Relief</span>
+          </div>
+
+          <!-- Theme Toggle Button -->
+          <button 
+            type="button" 
+            onclick="toggleTheme()" 
+            id="theme-toggle-btn"
+            aria-label="Toggle Dark/Light Mode"
+            class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition shadow-xs cursor-pointer flex items-center justify-center"
+          >
+            <i id="theme-toggle-icon" data-lucide="moon" class="w-4 h-4 transition-transform duration-300"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-3 overflow-x-auto py-2 border-t border-slate-100 dark:border-slate-800" id="nav-tabs" aria-label="Tabs">
+        <button onclick="switchTab('log')" id="tab-btn-log" class="tab-btn active px-3.5 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 shadow-sm border border-brand-200 dark:border-brand-800/60">
+          <i data-lucide="edit-3" class="w-4 h-4"></i>
+          <span>Daily Log</span>
+        </button>
+        <button onclick="switchTab('trends')" id="tab-btn-trends" class="tab-btn px-3.5 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent">
+          <i data-lucide="line-chart" class="w-4 h-4"></i>
+          <span>Trends & Charts</span>
+        </button>
+        <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-3.5 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent">
+          <i data-lucide="history" class="w-4 h-4"></i>
+          <span>History & Logs</span>
+          <span id="history-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">0</span>
+        </button>
+        <button onclick="switchTab('data')" id="tab-btn-data" class="tab-btn px-3.5 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent">
+          <i data-lucide="database" class="w-4 h-4"></i>
+          <span>Data & Export</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    
+    <!-- ========================================== -->
+    <!-- TAB 1: DAILY LOG ENTRY FORM                -->
+    <!-- ========================================== -->
+    <section id="tab-content-log" class="tab-content block space-y-6">
+      
+      <!-- Quick Action Banner -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors duration-200">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <i data-lucide="calendar" class="w-5 h-5 text-brand-600 dark:text-brand-400"></i>
+            Log Daily Status
+          </h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Click individual stop points (1–10) or drag the slider. Baseline begins <strong>Sept 29, 2026</strong>.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="prefillWithYesterday()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition cursor-pointer">
+            <i data-lucide="copy" class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400"></i>
+            Copy Yesterday
+          </button>
+          <button type="button" onclick="resetFormToDefaults()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-semibold shadow-xs transition cursor-pointer">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-400"></i>
+            Reset
+          </button>
+        </div>
+      </div>
+      <form id="daily-log-form" onsubmit="handleLogSubmit(event)" class="space-y-6">
+        
+        <!-- Metadata Card: Date, Dose, Meal Compliance -->
+        <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors duration-200">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2">
+            <i data-lucide="pill" class="w-4 h-4 text-brand-600 dark:text-brand-400"></i>
+            Dosage & Protocol Information
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- Date Picker (Locked to min Sept 29, 2026) -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="log-date" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">Date of Entry</label>
+                <span class="text-[11px] font-bold text-brand-600 dark:text-brand-400">Min: Sept 29, 2026</span>
+              </div>
+              <input 
+                type="date" 
+                id="log-date" 
+                min="2026-09-29" 
+                required 
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 text-sm font-medium transition outline-none shadow-xs"
+              >
+            </div>
+
+            <!-- Dosage Selector -->
+            <div>
+              <label for="log-dosage" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Prescribed Dose</label>
+              <div class="relative">
+                <select id="log-dosage" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 text-sm font-medium transition outline-none shadow-xs appearance-none">
+                  <option value="10 mg" selected>10 mg (Standard Titration Startup)</option>
+                  <option value="20 mg">20 mg (Target Therapeutic Dose)</option>
+                  <option value="40 mg">40 mg (High Maintenance)</option>
+                  <option value="5 mg">5 mg (Low / Sensitive)</option>
+                  <option value="Custom">Custom Dosage</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 dark:text-slate-500">
+                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Taken with Substantial Meal Toggle -->
+            <div class="flex flex-col justify-end">
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Taken with Substantial Meal?</label>
+              <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition select-none">
+                <input type="checkbox" id="log-meal" checked class="w-4 h-4 text-brand-600 rounded border-slate-300 dark:border-slate-600 focus:ring-brand-500 dark:bg-slate-900 cursor-pointer">
+                <div class="text-xs">
+                  <span class="font-semibold text-slate-800 dark:text-slate-200">Yes, taken with food</span>
+                  <span class="text-slate-500 dark:text-slate-400 block text-[11px]">(Required: ~350+ kcal for complete absorption)</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Sliders Grid: Side Effects vs Benefits -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- CARD 1: SIDE EFFECTS (1 = Severe distress, 10 = Normal/Optimal) -->
+          <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 shadow-sm space-y-5 transition-colors duration-200">
+            <div class="flex items-center justify-between pb-3 border-b border-amber-100 dark:border-amber-950">
+              <div class="flex items-center gap-2">
+                <div class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/50">
+                  <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-slate-900 dark:text-white">Side Effect Tolerability</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">1 = Intense Side Effect &bull; 10 = Normal / No Distress</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+                5 Metrics
+              </span>
+            </div>
+
+            <!-- Side Effect Stop Points & Slider Containers -->
+            <div id="side-effects-sliders-container" class="space-y-4">
+              <!-- Rendered via JavaScript -->
+            </div>
+          </div>
+
+          <!-- CARD 2: BENEFITS (1 = Severe symptoms, 10 = Optimal Relief) -->
+          <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-teal-200/60 dark:border-teal-900/40 shadow-sm space-y-5 transition-colors duration-200">
+            <div class="flex items-center justify-between pb-3 border-b border-teal-100 dark:border-teal-950">
+              <div class="flex items-center gap-2">
+                <div class="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-brand-700 dark:text-brand-300 border border-teal-200/50 dark:border-teal-800/50">
+                  <i data-lucide="sparkles" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-slate-900 dark:text-white">Therapeutic Benefits</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">1 = Severe Symptoms &bull; 10 = Optimal Relief</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-50 dark:bg-teal-950/80 text-brand-800 dark:text-brand-300 border border-teal-200/60 dark:border-teal-800/60">
+                4 Metrics
+              </span>
+            </div>
+
+            <!-- Benefits Stop Points & Slider Containers -->
+            <div id="benefits-sliders-container" class="space-y-4">
+              <!-- Rendered via JavaScript -->
+            </div>
+          </div>
+
+        </div>
+        <!-- Daily Notes & Journal Section -->
+        <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors duration-200">
+          <label for="log-notes" class="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-2">
+            <i data-lucide="book-open" class="w-4 h-4 text-brand-600 dark:text-brand-400"></i>
+            Daily Journal & Observations
+          </label>
+          <textarea id="log-notes" rows="3" placeholder="Note physical sensations, meal eaten with medication, caffeine intake, interactions with work or exercise, or general feelings..." class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none transition resize-y"></textarea>
+        </div>
+
+        <!-- Submit Action Bar -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white shadow-lg border border-slate-800 dark:border-slate-700 transition-colors duration-200">
+          <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center shrink-0">
+              <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <p class="text-xs sm:text-sm font-medium text-slate-200">Data is saved securely on this device.</p>
+              <p class="text-[11px] text-slate-400">Records prior to Sept 29, 2026 are automatically excluded.</p>
+            </div>
+          </div>
+          <button type="submit" id="save-log-btn" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 active:scale-[0.98] font-bold text-sm text-white shadow-md shadow-brand-500/30 transition-all cursor-pointer">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Save Today's Log</span>
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: TRENDS & CHARTS                     -->
+    <!-- ========================================== -->
+    <section id="tab-content-trends" class="tab-content hidden space-y-6">
+      
+      <!-- Timeframe Filters & Quick Metrics Overview -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors duration-200">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-5 h-5 text-brand-600 dark:text-brand-400"></i>
+            Symptom Trajectories & Analytics
+          </h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Tracking from baseline (Sept 29, 2026 onwards).</p>
+        </div>
+
+        <!-- Timeframe Selector -->
+        <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+          <button onclick="setTimeframe(7)" id="timeframe-7" class="timeframe-btn px-3 py-1.5 rounded-lg transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">7 Days</button>
+          <button onclick="setTimeframe(14)" id="timeframe-14" class="timeframe-btn px-3 py-1.5 rounded-lg transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">14 Days</button>
+          <button onclick="setTimeframe(0)" id="timeframe-0" class="timeframe-btn px-3 py-1.5 rounded-lg transition bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs cursor-pointer">All Active (Sept 29+)</button>
+        </div>
+      </div>
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-200">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span class="text-xs font-semibold">Average Benefits</span>
+            <i data-lucide="smile" class="w-4 h-4 text-teal-600 dark:text-teal-400"></i>
+          </div>
+          <div class="flex items-baseline gap-1.5">
+            <span id="stat-avg-benefit" class="text-2xl font-black text-slate-900 dark:text-white">--</span>
+            <span class="text-xs text-slate-400 dark:text-slate-500">/ 10</span>
+          </div>
+          <span class="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">Mood, serenity & drive</span>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-200">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span class="text-xs font-semibold">Side Effect Tolerance</span>
+            <i data-lucide="shield" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
+          </div>
+          <div class="flex items-baseline gap-1.5">
+            <span id="stat-avg-tolerance" class="text-2xl font-black text-slate-900 dark:text-white">--</span>
+            <span class="text-xs text-slate-400 dark:text-slate-500">/ 10</span>
+          </div>
+          <span class="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">10 = complete relief</span>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-200">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span class="text-xs font-semibold">Meal Compliance</span>
+            <i data-lucide="utensils" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
+          </div>
+          <div class="flex items-baseline gap-1.5">
+            <span id="stat-meal-rate" class="text-2xl font-black text-slate-900 dark:text-white">--%</span>
+          </div>
+          <span class="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">Doses paired with &ge;350 kcal</span>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-200">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+            <span class="text-xs font-semibold">Tracked Days</span>
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-brand-600 dark:text-brand-400"></i>
+          </div>
+          <div class="flex items-baseline gap-1.5">
+            <span id="stat-total-logs" class="text-2xl font-black text-slate-900 dark:text-white">0</span>
+            <span class="text-xs text-slate-400 dark:text-slate-500">days</span>
+          </div>
+          <span class="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">Starting Sept 29, 2026</span>
+        </div>
+      </div>
+
+      <!-- Main Line Chart 1: Benefits Trajectory -->
+      <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 transition-colors duration-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-teal-500"></span>
+              Therapeutic Benefits Progression
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Tracking mood uplift, calm serenity, quiet mental space, and drive.</p>
+          </div>
+          <div class="text-xs text-slate-400 dark:text-slate-500 font-medium">1 (Severe) &rarr; 10 (Peak Relief)</div>
+        </div>
+        <div class="chart-container">
+          <canvas id="benefitsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Main Line Chart 2: Side Effects Tolerability -->
+      <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 transition-colors duration-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+              Side Effects Tolerability Progression
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Tracking gastro settling, patience, jitter-free activation, somatic stillness, and sleep.</p>
+          </div>
+          <div class="text-xs text-slate-400 dark:text-slate-500 font-medium">Higher is better (10 = Zero Side Effect)</div>
+        </div>
+        <div class="chart-container">
+          <canvas id="sideEffectsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Individual Metric Drilldown Section -->
+      <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 transition-colors duration-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="zoom-in" class="w-4 h-4 text-brand-600 dark:text-brand-400"></i>
+              Single Metric Deep Dive
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Isolate any individual metric to observe precise day-to-day progression.</p>
+          </div>
+          <!-- Dropdown selector for metric drilldown -->
+          <div class="relative w-full sm:w-64">
+            <select id="drilldown-select" onchange="renderDrilldownChart()" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 text-xs font-semibold transition outline-none shadow-xs appearance-none">
+              <optgroup label="Benefits">
+                <option value="depression" selected>Depression (Mood & Resilience)</option>
+                <option value="anxiety">Anxiety (Calm & Serenity)</option>
+                <option value="rumination">Ruminating Thoughts (Quiet Mind)</option>
+                <option value="motivation">Motivation & Drive</option>
+              </optgroup>
+              <optgroup label="Side Effects (Tolerability)">
+                <option value="gastro">Gastro Issues</option>
+                <option value="irritability">Irritability</option>
+                <option value="activation">Activation / Jitteriness</option>
+                <option value="restlessness">Restlessness / Akathisia</option>
+                <option value="sleep">Sleep Quality</option>
+              </optgroup>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 dark:text-slate-500">
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="drilldownChart"></canvas>
+        </div>
+      </div>
+
+    </section>
+    <!-- ========================================== -->
+    <!-- TAB 3: HISTORY & LOGS                      -->
+    <!-- ========================================== -->
+    <section id="tab-content-history" class="tab-content hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors duration-200">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <i data-lucide="list" class="w-5 h-5 text-brand-600 dark:text-brand-400"></i>
+            Recorded Logs History
+          </h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Chronological record of entries recorded from Sept 29, 2026 onwards.</p>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative w-full sm:w-72">
+          <input type="text" id="history-search" oninput="renderHistoryList()" placeholder="Search notes or dates..." class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-xs font-medium focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 focus:border-brand-500 outline-none transition">
+          <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 dark:text-slate-500">
+            <i data-lucide="search" class="w-4 h-4"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Cards Container -->
+      <div id="history-list-container" class="space-y-4">
+        <!-- Rendered via JavaScript -->
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: DATA MANAGEMENT & SAMPLE LOADER     -->
+    <!-- ========================================== -->
+    <section id="tab-content-data" class="tab-content hidden space-y-6">
+      
+      <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 transition-colors duration-200">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i data-lucide="database" class="w-5 h-5 text-brand-600 dark:text-brand-400"></i>
+          Data Management & Protocol Tools
+        </h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+          All records older than September 29, 2026 are automatically removed from storage. You can generate sample titration data starting Sept 29 or export your logs to share with your physician.
+        </p>
+
+        <!-- Sample Data Card (Sept 29 to Oct 1, 2026) -->
+        <div class="p-5 rounded-2xl bg-gradient-to-r from-brand-50 to-teal-50 dark:from-brand-950/40 dark:to-teal-950/40 border border-brand-200/70 dark:border-brand-900/60 space-y-3">
+          <div class="flex items-center gap-2 text-brand-900 dark:text-brand-200 font-bold text-sm">
+            <i data-lucide="wand-2" class="w-4 h-4 text-brand-700 dark:text-brand-400"></i>
+            Populate Startup Titration Data (Sept 29 &ndash; Oct 1, 2026)
+          </div>
+          <p class="text-xs text-brand-800 dark:text-brand-300 leading-relaxed">
+            Generates realistic 3-day startup records: <strong>Sept 29, 2026 (Day 1 startup)</strong>, <strong>Sept 30, 2026 (Day 2 adaptation)</strong>, and <strong>Oct 1, 2026 (Day 3 stabilizing)</strong>.
+          </p>
+          <button onclick="loadSampleData()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-sm transition cursor-pointer">
+            <i data-lucide="file-down" class="w-4 h-4"></i>
+            Load Sept 29+ Sample Records
+          </button>
+        </div>
+
+        <!-- Export & Backup Options -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition space-y-2 bg-slate-50/50 dark:bg-slate-950/50">
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+              Export to CSV Spreadsheet
+            </h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Download formatted tabular data suitable for opening in Microsoft Excel, Google Sheets, or Apple Numbers.</p>
+            <button onclick="exportToCSV()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs transition cursor-pointer">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              Download .CSV
+            </button>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition space-y-2 bg-slate-50/50 dark:bg-slate-950/50">
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="code" class="w-4 h-4 text-indigo-600 dark:text-indigo-400"></i>
+              Export to JSON Backup
+            </h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Create a machine-readable JSON backup of your tracked entries to store securely.</p>
+            <button onclick="exportToJSON()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs transition cursor-pointer">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              Download .JSON
+            </button>
+          </div>
+        </div>
+
+        <!-- Danger Zone: Reset Data -->
+        <div class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 space-y-2 mt-4">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+            Reset Records
+          </h4>
+          <p class="text-xs text-rose-600 dark:text-rose-300">Clear all saved logs stored on this browser.</p>
+          <button onclick="openModal('clearAll')" class="mt-1 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer">
+            Clear All Data
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 pointer-events-none flex flex-col gap-2 max-w-sm w-full"></div>
+
+  <!-- Custom Confirmation Modal -->
+  <div id="custom-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center gap-3">
+        <div id="modal-icon-container" class="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+          <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 id="modal-title" class="text-base font-bold text-slate-900 dark:text-white">Confirm Action</h3>
+          <p id="modal-desc" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Are you sure you want to proceed?</p>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 transition cursor-pointer">
+          Cancel
+        </button>
+        <button id="modal-confirm-btn" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold text-white shadow-sm transition cursor-pointer">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+  <script>
+    /* ==========================================================================
+       METRICS DEFINITIONS & 1-10 CLINICAL DESCRIPTIONS
+       Scale: 1 (Most negative / severe distress) to 10 (Most positive / optimal)
+       ========================================================================== */
+
+    const MIN_PERMISSIBLE_DATE = '2026-09-29'; // Earliest allowed tracked date
+
+    const METRIC_CONFIG = {
+      gastro: {
+        id: 'gastro',
+        category: 'sideEffect',
+        name: 'Gastro Issues',
+        icon: 'activity',
+        color: '#f97316',
+        desc: {
+          1: 'Severe nausea, acute cramps, or frequent diarrhea; unable to keep food down',
+          2: 'Very frequent loose stools, heavy stomach burning and significant discomfort',
+          3: 'Frequent gastrointestinal distress, persistent nausea throughout the day',
+          4: 'Mild nausea and noticeable indigestion for hours following the dose',
+          5: 'Noticeable gut rumbling, mild digestive discomfort, but manageable',
+          6: 'Tolerable stomach sensitivity; noticeable only if food was insufficient',
+          7: 'Light stomach awareness; minimal disruption to meals or daily routine',
+          8: 'Very mild occasional rumbling; normal bowel motility and comfort',
+          9: 'Almost completely normal digestion; comfortable and settled',
+          10: 'Completely normal gut comfort; zero symptoms or digestive awareness'
+        }
+      },
+      irritability: {
+        id: 'irritability',
+        category: 'sideEffect',
+        name: 'Irritability',
+        icon: 'flame',
+        color: '#ef4444',
+        desc: {
+          1: 'Severe agitation or intense anger; hair-trigger explosive reaction',
+          2: 'Easily provoked into anger over minor disruptions; high inner friction',
+          3: 'High frustration threshold; irritable for the majority of the day',
+          4: 'Noticeable snapping at others; constant undercurrent of impatience',
+          5: 'Moderate irritability; requires conscious deep breaths and effort to calm',
+          6: 'Mild impatience in stressful moments; generally able to keep composed',
+          7: 'Patient baseline; occasional brief annoyance that passes quickly',
+          8: 'Calm disposition; handles small conflicts and delays calmly',
+          9: 'Very patient, grounded, empathetic, and emotionally tolerant',
+          10: 'Deeply calm, gentle, patient, and completely unbothered'
+        }
+      },
+      activation: {
+        id: 'activation',
+        category: 'sideEffect',
+        name: 'Activation / Jitteriness',
+        icon: 'zap',
+        color: '#eab308',
+        desc: {
+          1: 'Severe uncomfortable overstimulation; buzzing, intense internal tremor',
+          2: 'Intense nervous electrical hum; racing bodily energy and heart awareness',
+          3: 'Uncomfortable nervous excess energy; shaky or jumpy across the day',
+          4: 'Noticeably wired; feels akin to consuming excessive double espressos',
+          5: 'Mild physical activation; noticeable bodily hum but tolerable',
+          6: 'Alert with a slight nervous edge; beginning to settle into a rhythm',
+          7: 'Smooth natural alertness; minimal tension in neck or shoulders',
+          8: 'Clean, balanced daytime energy without jitters or nervous speed',
+          9: 'Centered physical vitality; completely steady and focused',
+          10: 'Optimal balanced nervous system; calm, steady, harmonious clarity'
+        }
+      },
+      restlessness: {
+        id: 'restlessness',
+        category: 'sideEffect',
+        name: 'Restlessness / Akathisia',
+        icon: 'move',
+        color: '#d97706',
+        desc: {
+          1: 'Severe physical akathisia; unable to sit still or keep limbs relaxed at all',
+          2: 'Intense urge to pace; legs and body deeply restless and agitated',
+          3: 'Frequent fidgeting, constant limb shifting, unable to relax on couch',
+          4: 'Mild akathisia-like sensation; difficulty relaxing limbs during seated work',
+          5: 'Occasional need to move or stretch; moderate leg restlessness',
+          6: 'Mostly still; minor fidgeting during long quiet meetings or reading',
+          7: 'Comfortable remaining seated; mild occasional fidgeting',
+          8: 'Physically relaxed, grounded, and steady seated posture',
+          9: 'Effortlessly still and comfortable in one place for extended hours',
+          10: 'Deep somatic relaxation, total physical peace, and relaxed stillness'
+        }
+      },
+      sleep: {
+        id: 'sleep',
+        category: 'sideEffect',
+        name: 'Sleep Quality',
+        icon: 'moon',
+        color: '#6366f1',
+        desc: {
+          1: 'Severe insomnia (<3 hours); intense night waking, cannot fall asleep',
+          2: 'Severely fragmented sleep, disturbing dreams, extreme morning exhaustion',
+          3: 'Tossed and turned for multiple hours; fitful, restless sleep',
+          4: 'Frequent night wakings, intense vivid dreams, woke feeling unrefreshed',
+          5: 'Took over an hour to fall asleep; roughly 5–6 hours of light sleep',
+          6: 'Moderate sleep; woke once or twice but fell back asleep without issue',
+          7: 'Decent restful night; woke up with fair morning energy and clear head',
+          8: 'Solid 7+ hours; minimal awakenings; woke refreshed and ready for the day',
+          9: 'Deep, sound, restorative sleep throughout the entire night',
+          10: 'Flawless restorative sleep; waking completely rejuvenated and clear'
+        }
+      },
+
+      // Therapeutic Benefits: 1 = Severe symptoms, 10 = Optimal resilient mood
+      depression: {
+        id: 'depression',
+        category: 'benefit',
+        name: 'Depression / Resilient Mood',
+        icon: 'heart-pulse',
+        color: '#14b8a6',
+        desc: {
+          1: 'Severe depressive weight; profound sadness, hopelessness, or numbness',
+          2: 'Deep persistent gloom; struggling to perform basic daily self-care',
+          3: 'Pervasive heavy mood; low emotional warmth and heavy fatigue',
+          4: 'Frequently down throughout the day; noticeable depressive gloom',
+          5: 'Neutral/flat emotional baseline; neither deep depression nor bright mood',
+          6: 'Slightly brighter; glimmers of interest, comfort, and positive engagement',
+          7: 'Noticeable positive emotional lift; able to smile, laugh, and connect',
+          8: 'Good resilience; cheerful, stable, and hopeful when facing challenges',
+          9: 'Very positive, warm, joyful, and emotionally resilient throughout',
+          10: 'Optimal emotional vibrancy, resilience, lightness, and optimism'
+        }
+      },
+      anxiety: {
+        id: 'anxiety',
+        category: 'benefit',
+        name: 'Anxiety / Serenity',
+        icon: 'shield-alert',
+        color: '#06b6d4',
+        desc: {
+          1: 'Debilitating panic, intense chest tightness, or continuous high dread',
+          2: 'Near-constant physical tension, elevated heart rate, and high worry',
+          3: 'High anxiety baseline; easily startled, tense shoulders, nervous dread',
+          4: 'Noticeable worry throughout day; frequent nervous stomach flutter',
+          5: 'Moderate manageable anxiety; able to function despite background hum',
+          6: 'Mild situational worry; physical calm remains mostly intact',
+          7: 'Generally tranquil; calm demeanor with only brief, manageable spikes',
+          8: 'Peaceful and steady; resilient against unexpected daily stressors',
+          9: 'Deep inner calm and unwavering serenity throughout the day',
+          10: 'Complete tranquility, profound peace of mind, and calm ease'
+        }
+      },
+      rumination: {
+        id: 'rumination',
+        category: 'benefit',
+        name: 'Ruminating Thoughts (Quiet Mind)',
+        icon: 'brain',
+        color: '#8b5cf6',
+        desc: {
+          1: 'Incessant negative looping thoughts; impossible to break mental spirals',
+          2: 'Severe mental perseveration; obsessing over painful worries and past events',
+          3: 'Frequent intrusive thoughts occupying most mental focus and energy',
+          4: 'Repetitive worry spirals; requires strong conscious effort to stop',
+          5: 'Moderate mental chatter; can redirect focus with external distraction',
+          6: 'Occasional thought loops, but easily self-corrected and released',
+          7: 'Clearer mind; able to let distressing thoughts pass by without dwelling',
+          8: 'Quiet, orderly mind; focus remains anchored on the present task',
+          9: 'Very quiet and peaceful mental space; mental silence when desired',
+          10: 'Effortless clarity, quiet stillness, and peaceful present awareness'
+        }
+      },
+      motivation: {
+        id: 'motivation',
+        category: 'benefit',
+        name: 'Motivation & Drive',
+        icon: 'zap',
+        color: '#10b981',
+        desc: {
+          1: 'Complete anhedonia; impossible to initiate any task or find purpose',
+          2: 'Severe apathy; struggling with basic hygiene, emails, or cooking meals',
+          3: 'Heavy resistance to starting anything; very low drive and executive spark',
+          4: 'Low motivation; forced willpower required for simple routine duties',
+          5: 'Can complete required duties, but lacks enthusiasm or creative spark',
+          6: 'Willingness to start chores and projects when prompted; steady pace',
+          7: 'Good active drive; able to initiate tasks with minimal hesitation',
+          8: 'Strong enthusiasm, proactive mindset, and satisfaction upon completion',
+          9: 'High energy, goal-directed passion, and eagerness to pursue goals',
+          10: 'Peak motivation, boundless healthy drive, initiative, and purpose'
+        }
+      }
+    };
+    const STORAGE_KEY = 'medtrack_records_vilazodone_v3';
+    const THEME_STORAGE_KEY = 'medtrack_theme_preference';
+
+    // Application State
+    let appData = {
+      records: [],
+      activeTimeframe: 0, // Default to all Sept 29+
+      editingDate: null
+    };
+
+    let benefitsChartInstance = null;
+    let sideEffectsChartInstance = null;
+    let drilldownChartInstance = null;
+
+    /* Theme Initialization */
+    function initTheme() {
+      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      if (storedTheme === 'dark' || (!storedTheme && systemPrefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      updateThemeUI();
+
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+          if (e.matches) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          updateThemeUI();
+          renderAllCharts();
+        }
+      });
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+      updateThemeUI();
+      renderAllCharts();
+      showToast(`Switched to ${isDark ? 'Dark' : 'Light'} Mode`, 'info');
+    }
+
+    function updateThemeUI() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const icon = document.getElementById('theme-toggle-icon');
+      if (icon) {
+        icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+        lucide.createIcons();
+      }
+    }
+
+    function isDarkMode() {
+      return document.documentElement.classList.contains('dark');
+    }
+
+    function getChartThemeOptions() {
+      const dark = isDarkMode();
+      return {
+        gridColor: dark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+        tickColor: dark ? '#94a3b8' : '#64748b',
+        legendColor: dark ? '#e2e8f0' : '#334155',
+        tooltipBg: dark ? '#0f172a' : '#ffffff',
+        tooltipTitle: dark ? '#f8fafc' : '#0f172a',
+        tooltipBody: dark ? '#cbd5e1' : '#334155',
+        tooltipBorder: dark ? '#334155' : '#e2e8f0'
+      };
+    }
+
+    function getScoreColor(val) {
+      val = Number(val);
+      if (val <= 2) return '#ef4444'; // Red (Severe distress)
+      if (val <= 4) return '#f97316'; // Orange
+      if (val <= 6) return '#eab308'; // Amber
+      if (val <= 8) return '#14b8a6'; // Teal
+      return '#10b981';               // Emerald (Optimal)
+    }
+
+    /* ==========================================================================
+       CLICKABLE STOP POINTS & SLIDER RENDERING
+       ========================================================================== */
+
+    function createSliderWithStopPointsHTML(key, config) {
+      // Generate 10 discrete stop buttons: [1] ... [10]
+      let stopButtonsHTML = '';
+      for (let i = 1; i <= 10; i++) {
+        stopButtonsHTML += `
+          <button 
+            type="button" 
+            id="stop-btn-${key}-${i}" 
+            onclick="setMetricScore('${key}', ${i})"
+            class="stop-point-btn py-1.5 text-center font-bold text-xs rounded-lg border transition-all cursor-pointer select-none bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-600"
+            title="Rating ${i}: ${config.desc[i] ? config.desc[i].substring(0, 45) : ''}..."
+          >
+            ${i}
+          </button>
+        `;
+      }
+
+      return `
+        <div class="p-3.5 sm:p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-950/70 transition" id="metric-card-${key}">
+          <!-- Header: Name, Icon, Badge -->
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-white dark:bg-slate-900 shadow-xs border border-slate-200/50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                <i data-lucide="${config.icon}" class="w-4 h-4" style="color: ${config.color}"></i>
+              </span>
+              <span class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">${config.name}</span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="score-badge-${key}" class="px-2.5 py-0.5 rounded-md text-xs font-extrabold text-white transition-all shadow-xs" style="background-color: ${getScoreColor(5)}">5</span>
+              <span class="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">/10</span>
+            </div>
+          </div>
+          
+          <!-- Continuous Slider -->
+          <div class="px-0.5 my-1">
+            <input 
+              type="range" 
+              id="input-${key}" 
+              min="1" 
+              max="10" 
+              step="1" 
+              value="5" 
+              oninput="handleSliderChange('${key}', this.value)"
+              class="w-full h-2 rounded-lg cursor-pointer"
+            >
+          </div>
+
+          <!-- Clickable Discrete Stop Points (1-10) -->
+          <div class="grid grid-cols-10 gap-1 my-2">
+            ${stopButtonsHTML}
+          </div>
+
+          <!-- Boundary Legend -->
+          <div class="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500 font-bold px-0.5">
+            <span>1: Severe distress</span>
+            <span>5: Moderate baseline</span>
+            <span>10: Optimal / Peak relief</span>
+          </div>
+
+          <!-- Rich Nuanced Clinical Description Box -->
+          <div id="desc-${key}" class="mt-2.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs leading-relaxed">
+            ${config.desc[5]}
+          </div>
+        </div>
+      `;
+    }
+
+    function initializeSliders() {
+      const seContainer = document.getElementById('side-effects-sliders-container');
+      const bContainer = document.getElementById('benefits-sliders-container');
+      
+      let seHTML = '';
+      let bHTML = '';
+
+      Object.keys(METRIC_CONFIG).forEach(key => {
+        const item = METRIC_CONFIG[key];
+        if (item.category === 'sideEffect') {
+          seHTML += createSliderWithStopPointsHTML(key, item);
+        } else {
+          bHTML += createSliderWithStopPointsHTML(key, item);
+        }
+      });
+
+      seContainer.innerHTML = seHTML;
+      bContainer.innerHTML = bHTML;
+      lucide.createIcons();
+
+      // Highlight initial value (5) for all buttons
+      Object.keys(METRIC_CONFIG).forEach(key => {
+        updateStopButtonsUI(key, 5);
+      });
+    }
+
+    function setMetricScore(key, value) {
+      value = parseInt(value, 10);
+      const input = document.getElementById(`input-${key}`);
+      if (input) {
+        input.value = value;
+      }
+      handleSliderChange(key, value);
+    }
+
+    function updateStopButtonsUI(key, activeValue) {
+      activeValue = parseInt(activeValue, 10);
+      for (let i = 1; i <= 10; i++) {
+        const btn = document.getElementById(`stop-btn-${key}-${i}`);
+        if (!btn) continue;
+
+        if (i === activeValue) {
+          const colorHex = getScoreColor(activeValue);
+          btn.style.backgroundColor = colorHex;
+          btn.style.borderColor = colorHex;
+          btn.style.color = '#ffffff';
+          btn.classList.add('shadow-xs', 'ring-2', 'ring-offset-1', 'dark:ring-offset-slate-900');
+          btn.style.setProperty('--tw-ring-color', colorHex);
+        } else {
+          btn.style.backgroundColor = '';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+          btn.classList.remove('shadow-xs', 'ring-2', 'ring-offset-1', 'dark:ring-offset-slate-900');
+        }
+      }
+    }
+
+    function handleSliderChange(key, value) {
+      value = parseInt(value, 10);
+      const badge = document.getElementById(`score-badge-${key}`);
+      const descBox = document.getElementById(`desc-${key}`);
+      
+      if (badge) {
+        badge.textContent = value;
+        badge.style.backgroundColor = getScoreColor(value);
+      }
+      if (descBox && METRIC_CONFIG[key] && METRIC_CONFIG[key].desc[value]) {
+        descBox.textContent = METRIC_CONFIG[key].desc[value];
+      }
+
+      updateStopButtonsUI(key, value);
+    }
+    /* ==========================================================================
+       STORAGE & DATA SANITIZATION (SEPTEMBER 29, 2026 RULE)
+       ========================================================================== */
+
+    function sanitizeRecords(records) {
+      if (!Array.isArray(records)) return [];
+      // STRICT RULE: Keep ONLY records >= MIN_PERMISSIBLE_DATE ('2026-09-29')
+      return records.filter(r => r && r.date && r.date >= MIN_PERMISSIBLE_DATE);
+    }
+
+    function loadRecordsFromStorage() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sanitized = sanitizeRecords(parsed);
+          
+          // If older records were pruned, save cleaned list back immediately
+          if (sanitized.length !== parsed.length) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+          }
+          appData.records = sanitized;
+        } else {
+          appData.records = [];
+        }
+      } catch (e) {
+        console.error('Failed to parse records:', e);
+        appData.records = [];
+      }
+      updateHistoryBadge();
+    }
+
+    function saveRecordsToStorage() {
+      try {
+        // Enforce sanitization before saving
+        appData.records = sanitizeRecords(appData.records);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData.records));
+      } catch (e) {
+        showToast('Error saving data to local storage', 'error');
+      }
+      updateHistoryBadge();
+    }
+
+    function updateHistoryBadge() {
+      const badge = document.getElementById('history-badge');
+      if (badge) {
+        badge.textContent = appData.records.length;
+      }
+    }
+
+    function getTodayDateString() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      const today = `${y}-${m}-${d}`;
+      // Ensure default date is at least MIN_PERMISSIBLE_DATE
+      return today < MIN_PERMISSIBLE_DATE ? MIN_PERMISSIBLE_DATE : today;
+    }
+
+    function resetFormToDefaults() {
+      document.getElementById('log-date').value = getTodayDateString();
+      document.getElementById('log-dosage').value = '10 mg';
+      document.getElementById('log-meal').checked = true;
+      document.getElementById('log-notes').value = '';
+      appData.editingDate = null;
+      document.getElementById('save-log-btn').querySelector('span').textContent = "Save Today's Log";
+
+      Object.keys(METRIC_CONFIG).forEach(key => {
+        const input = document.getElementById(`input-${key}`);
+        if (input) {
+          input.value = 5;
+          handleSliderChange(key, 5);
+        }
+      });
+    }
+
+    function prefillWithYesterday() {
+      if (appData.records.length === 0) {
+        showToast('No previous logs found to copy from.', 'info');
+        return;
+      }
+
+      const sorted = [...appData.records].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const latest = sorted[0];
+
+      document.getElementById('log-dosage').value = latest.dosage || '10 mg';
+      document.getElementById('log-meal').checked = !!latest.takenWithMeal;
+
+      Object.keys(METRIC_CONFIG).forEach(key => {
+        if (latest.scores && latest.scores[key] !== undefined) {
+          const val = latest.scores[key];
+          const input = document.getElementById(`input-${key}`);
+          if (input) {
+            input.value = val;
+            handleSliderChange(key, val);
+          }
+        }
+      });
+
+      showToast(`Prefilled values from ${latest.date}`, 'success');
+    }
+
+    function handleLogSubmit(e) {
+      e.preventDefault();
+
+      const dateVal = document.getElementById('log-date').value;
+      if (!dateVal) {
+        showToast('Please select a date.', 'error');
+        return;
+      }
+
+      if (dateVal < MIN_PERMISSIBLE_DATE) {
+        showToast(`Date cannot be earlier than September 29, 2026.`, 'error');
+        return;
+      }
+
+      const scores = {};
+      Object.keys(METRIC_CONFIG).forEach(key => {
+        const input = document.getElementById(`input-${key}`);
+        scores[key] = input ? parseInt(input.value, 10) : 5;
+      });
+
+      const entry = {
+        date: dateVal,
+        dosage: document.getElementById('log-dosage').value,
+        takenWithMeal: document.getElementById('log-meal').checked,
+        notes: document.getElementById('log-notes').value.trim(),
+        scores: scores,
+        updatedAt: new Date().toISOString()
+      };
+
+      const existingIdx = appData.records.findIndex(r => r.date === dateVal);
+      if (existingIdx !== -1) {
+        appData.records[existingIdx] = entry;
+        showToast(`Log for ${dateVal} updated successfully!`, 'success');
+      } else {
+        appData.records.push(entry);
+        showToast(`Log for ${dateVal} saved!`, 'success');
+      }
+
+      appData.records.sort((a, b) => new Date(a.date) - new Date(b.date));
+      saveRecordsToStorage();
+
+      renderHistoryList();
+      renderAllCharts();
+    }
+    /* ==========================================================================
+       NAVIGATION & TAB SWITCHING
+       ========================================================================== */
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-brand-50', 'dark:bg-brand-950/60', 'text-brand-700', 'dark:text-brand-300', 'border-brand-200', 'dark:border-brand-800/60', 'shadow-sm');
+        btn.classList.add('text-slate-600', 'dark:text-slate-400', 'border-transparent');
+      });
+
+      const targetContent = document.getElementById(`tab-content-${tabName}`);
+      const targetBtn = document.getElementById(`tab-btn-${tabName}`);
+
+      if (targetContent) targetContent.classList.remove('hidden');
+      if (targetBtn) {
+        targetBtn.classList.remove('text-slate-600', 'dark:text-slate-400', 'border-transparent');
+        targetBtn.classList.add('bg-brand-50', 'dark:bg-brand-950/60', 'text-brand-700', 'dark:text-brand-300', 'border-brand-200', 'dark:border-brand-800/60', 'shadow-sm');
+      }
+
+      if (tabName === 'trends') {
+        setTimeout(() => {
+          renderAllCharts();
+        }, 50);
+      } else if (tabName === 'history') {
+        renderHistoryList();
+      }
+      lucide.createIcons();
+    }
+
+    /* ==========================================================================
+       CHARTS & TRENDS (CHART.JS)
+       ========================================================================== */
+
+    function setTimeframe(days) {
+      appData.activeTimeframe = days;
+      document.querySelectorAll('.timeframe-btn').forEach(btn => {
+        btn.classList.remove('bg-white', 'dark:bg-slate-900', 'text-slate-800', 'dark:text-white', 'shadow-xs');
+        btn.classList.add('text-slate-600', 'dark:text-slate-400');
+      });
+      const activeBtn = document.getElementById(`timeframe-${days}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-white', 'dark:bg-slate-900', 'text-slate-800', 'dark:text-white', 'shadow-xs');
+        activeBtn.classList.remove('text-slate-600', 'dark:text-slate-400');
+      }
+      renderAllCharts();
+    }
+
+    function getFilteredRecords() {
+      if (appData.records.length === 0) return [];
+      const sorted = [...appData.records].sort((a, b) => new Date(a.date) - new Date(b.date));
+      if (appData.activeTimeframe === 0) return sorted;
+      
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - appData.activeTimeframe);
+      const filtered = sorted.filter(r => new Date(r.date) >= cutoff);
+      return filtered.length > 0 ? filtered : sorted;
+    }
+
+    function updateStatistics(records) {
+      if (!records || records.length === 0) {
+        document.getElementById('stat-avg-benefit').textContent = '--';
+        document.getElementById('stat-avg-tolerance').textContent = '--';
+        document.getElementById('stat-meal-rate').textContent = '--%';
+        document.getElementById('stat-total-logs').textContent = appData.records.length;
+        return;
+      }
+
+      let totalBenefitSum = 0;
+      let totalBenefitCount = 0;
+      let totalToleranceSum = 0;
+      let totalToleranceCount = 0;
+      let mealCount = 0;
+
+      records.forEach(r => {
+        if (r.takenWithMeal) mealCount++;
+        ['depression', 'anxiety', 'rumination', 'motivation'].forEach(k => {
+          if (r.scores && r.scores[k] !== undefined) {
+            totalBenefitSum += r.scores[k];
+            totalBenefitCount++;
+          }
+        });
+        ['gastro', 'irritability', 'activation', 'restlessness', 'sleep'].forEach(k => {
+          if (r.scores && r.scores[k] !== undefined) {
+            totalToleranceSum += r.scores[k];
+            totalToleranceCount++;
+          }
+        });
+      });
+
+      const avgBenefit = totalBenefitCount > 0 ? (totalBenefitSum / totalBenefitCount).toFixed(1) : '--';
+      const avgTolerance = totalToleranceCount > 0 ? (totalToleranceSum / totalToleranceCount).toFixed(1) : '--';
+      const mealRate = records.length > 0 ? Math.round((mealCount / records.length) * 100) : 0;
+
+      document.getElementById('stat-avg-benefit').textContent = avgBenefit;
+      document.getElementById('stat-avg-tolerance').textContent = avgTolerance;
+      document.getElementById('stat-meal-rate').textContent = `${mealRate}%`;
+      document.getElementById('stat-total-logs').textContent = appData.records.length;
+    }
+
+    function renderAllCharts() {
+      const records = getFilteredRecords();
+      updateStatistics(records);
+
+      if (records.length === 0) return;
+
+      const themeOpts = getChartThemeOptions();
+      const labels = records.map(r => {
+        const parts = r.date.split('-');
+        return parts.length === 3 ? `${parts[1]}/${parts[2]}` : r.date;
+      });
+
+      const commonScales = {
+        y: {
+          min: 1,
+          max: 10,
+          ticks: {
+            stepSize: 1,
+            color: themeOpts.tickColor,
+            font: { size: 10 }
+          },
+          grid: {
+            color: themeOpts.gridColor
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: themeOpts.tickColor,
+            font: { size: 10 }
+          }
+        }
+      };
+
+      const commonPlugins = {
+        legend: {
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            color: themeOpts.legendColor,
+            font: { size: 11 }
+          }
+        },
+        tooltip: {
+          padding: 10,
+          cornerRadius: 8,
+          backgroundColor: themeOpts.tooltipBg,
+          titleColor: themeOpts.tooltipTitle,
+          bodyColor: themeOpts.tooltipBody,
+          borderColor: themeOpts.tooltipBorder,
+          borderWidth: 1
+        }
+      };
+
+      // 1. Benefits Trajectory Chart
+      if (benefitsChartInstance) benefitsChartInstance.destroy();
+      const ctxBenefits = document.getElementById('benefitsChart').getContext('2d');
+      benefitsChartInstance = new Chart(ctxBenefits, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Depression (Resilient Mood)',
+              data: records.map(r => r.scores.depression || 5),
+              borderColor: METRIC_CONFIG.depression.color,
+              backgroundColor: METRIC_CONFIG.depression.color + '20',
+              tension: 0.3,
+              borderWidth: 2.5,
+              pointRadius: 5
+            },
+            {
+              label: 'Anxiety (Serenity)',
+              data: records.map(r => r.scores.anxiety || 5),
+              borderColor: METRIC_CONFIG.anxiety.color,
+              backgroundColor: METRIC_CONFIG.anxiety.color + '20',
+              tension: 0.3,
+              borderWidth: 2.5,
+              pointRadius: 5
+            },
+            {
+              label: 'Rumination (Quiet Mind)',
+              data: records.map(r => r.scores.rumination || 5),
+              borderColor: METRIC_CONFIG.rumination.color,
+              backgroundColor: METRIC_CONFIG.rumination.color + '20',
+              tension: 0.3,
+              borderWidth: 2,
+              borderDash: [4, 4],
+              pointRadius: 4
+            },
+            {
+              label: 'Motivation & Drive',
+              data: records.map(r => r.scores.motivation || 5),
+              borderColor: METRIC_CONFIG.motivation.color,
+              backgroundColor: METRIC_CONFIG.motivation.color + '20',
+              tension: 0.3,
+              borderWidth: 2.5,
+              pointRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: commonPlugins,
+          scales: commonScales
+        }
+      });
+      // 2. Side Effects Tolerability Chart
+      if (sideEffectsChartInstance) sideEffectsChartInstance.destroy();
+      const ctxSideEffects = document.getElementById('sideEffectsChart').getContext('2d');
+      sideEffectsChartInstance = new Chart(ctxSideEffects, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Gastro Settling',
+              data: records.map(r => r.scores.gastro || 5),
+              borderColor: METRIC_CONFIG.gastro.color,
+              backgroundColor: METRIC_CONFIG.gastro.color + '20',
+              tension: 0.3,
+              borderWidth: 2.5,
+              pointRadius: 5
+            },
+            {
+              label: 'Patience (Low Irritability)',
+              data: records.map(r => r.scores.irritability || 5),
+              borderColor: METRIC_CONFIG.irritability.color,
+              backgroundColor: METRIC_CONFIG.irritability.color + '20',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 4
+            },
+            {
+              label: 'Smooth Activation (No Jitters)',
+              data: records.map(r => r.scores.activation || 5),
+              borderColor: METRIC_CONFIG.activation.color,
+              backgroundColor: METRIC_CONFIG.activation.color + '20',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 4
+            },
+            {
+              label: 'Physical Grounding (No Akathisia)',
+              data: records.map(r => r.scores.restlessness || 5),
+              borderColor: METRIC_CONFIG.restlessness.color,
+              backgroundColor: METRIC_CONFIG.restlessness.color + '20',
+              tension: 0.3,
+              borderWidth: 2.5,
+              pointRadius: 5
+            },
+            {
+              label: 'Restorative Sleep Quality',
+              data: records.map(r => r.scores.sleep || 5),
+              borderColor: METRIC_CONFIG.sleep.color,
+              backgroundColor: METRIC_CONFIG.sleep.color + '20',
+              tension: 0.3,
+              borderWidth: 2.5,
+              pointRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: commonPlugins,
+          scales: commonScales
+        }
+      });
+
+      renderDrilldownChart();
+    }
+
+    function renderDrilldownChart() {
+      const records = getFilteredRecords();
+      if (records.length === 0) return;
+
+      const themeOpts = getChartThemeOptions();
+      const metricKey = document.getElementById('drilldown-select').value;
+      const config = METRIC_CONFIG[metricKey];
+      if (!config) return;
+
+      const labels = records.map(r => {
+        const parts = r.date.split('-');
+        return parts.length === 3 ? `${parts[1]}/${parts[2]}` : r.date;
+      });
+
+      const values = records.map(r => r.scores[metricKey] !== undefined ? r.scores[metricKey] : 5);
+
+      if (drilldownChartInstance) drilldownChartInstance.destroy();
+      const ctxDrilldown = document.getElementById('drilldownChart').getContext('2d');
+
+      drilldownChartInstance = new Chart(ctxDrilldown, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: `${config.name} (Daily Rating)`,
+              data: values,
+              borderColor: config.color,
+              backgroundColor: config.color + '25',
+              fill: true,
+              tension: 0.35,
+              borderWidth: 3,
+              pointBackgroundColor: isDarkMode() ? '#0f172a' : '#ffffff',
+              pointBorderColor: config.color,
+              pointBorderWidth: 2,
+              pointRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: themeOpts.legendColor }
+            },
+            tooltip: {
+              backgroundColor: themeOpts.tooltipBg,
+              titleColor: themeOpts.tooltipTitle,
+              bodyColor: themeOpts.tooltipBody,
+              borderColor: themeOpts.tooltipBorder,
+              borderWidth: 1,
+              callbacks: {
+                afterLabel: function(context) {
+                  const score = context.parsed.y;
+                  return config.desc[score] ? `\nAssessment: ${config.desc[score]}` : '';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              min: 1,
+              max: 10,
+              ticks: { stepSize: 1, color: themeOpts.tickColor },
+              grid: { color: themeOpts.gridColor }
+            },
+            x: {
+              ticks: { color: themeOpts.tickColor },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    /* ==========================================================================
+       HISTORY LIST VIEW RENDERING
+       ========================================================================== */
+
+    function renderHistoryList() {
+      const container = document.getElementById('history-list-container');
+      const searchQuery = (document.getElementById('history-search').value || '').toLowerCase();
+
+      if (appData.records.length === 0) {
+        container.innerHTML = `
+          <div class="text-center bg-white dark:bg-slate-900 rounded-2xl p-12 border border-slate-200 dark:border-slate-800 transition">
+            <i data-lucide="clipboard-x" class="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3"></i>
+            <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">No Logs Recorded Yet</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-4">Start logging from Sept 29, 2026 onwards or load the 3-day startup titration sample.</p>
+            <button onclick="loadSampleData()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer">
+              <i data-lucide="wand-2" class="w-4 h-4"></i>
+              Load Sept 29+ Sample Records
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      const sorted = [...appData.records].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const filtered = sorted.filter(r => {
+        return r.date.toLowerCase().includes(searchQuery) || (r.notes && r.notes.toLowerCase().includes(searchQuery));
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs transition">
+            No entries matched your search query "${searchQuery}".
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      filtered.forEach(entry => {
+        const benefitAvg = ((entry.scores.depression + entry.scores.anxiety + entry.scores.rumination + entry.scores.motivation) / 4).toFixed(1);
+        const seAvg = ((entry.scores.gastro + entry.scores.irritability + entry.scores.activation + entry.scores.restlessness + entry.scores.sleep) / 5).toFixed(1);
+
+        html += `
+          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-4 sm:p-5 space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              <div class="flex items-center gap-3">
+                <span class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <i data-lucide="calendar" class="w-4 h-4 text-brand-600 dark:text-brand-400"></i>
+                  ${entry.date}
+                </span>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  ${entry.dosage || '10 mg'}
+                </span>
+                ${entry.takenWithMeal 
+                  ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                       <i data-lucide="check" class="w-3 h-3"></i> With Meal
+                     </span>` 
+                  : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                       <i data-lucide="alert-circle" class="w-3 h-3"></i> Empty Stomach
+                     </span>`
+                }
+              </div>
+
+              <div class="flex items-center gap-2 self-end sm:self-auto">
+                <button onclick="editEntry('${entry.date}')" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
+                  <i data-lucide="edit-2" class="w-3.5 h-3.5 text-slate-400"></i>
+                  Edit
+                </button>
+                <button onclick="confirmDeleteEntry('${entry.date}')" class="px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div class="p-2.5 rounded-xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-100 dark:border-teal-900/50">
+                <div class="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-400">Benefits Score</div>
+                <div class="text-base font-extrabold text-teal-900 dark:text-teal-200 mt-0.5">${benefitAvg} <span class="text-[11px] font-normal text-teal-600 dark:text-teal-500">/10</span></div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50">
+                <div class="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400">Tolerability Score</div>
+                <div class="text-base font-extrabold text-amber-900 dark:text-amber-200 mt-0.5">${seAvg} <span class="text-[11px] font-normal text-amber-600 dark:text-amber-500">/10</span></div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+                <div class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Mood / Anxiety</div>
+                <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1">Mood: ${entry.scores.depression} &bull; Anx: ${entry.scores.anxiety}</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+                <div class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">GI / Sleep</div>
+                <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1">GI: ${entry.scores.gastro} &bull; Sleep: ${entry.scores.sleep}</div>
+              </div>
+            </div>
+
+            ${entry.notes ? `
+              <div class="text-xs text-slate-600 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-950/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 leading-relaxed">
+                <span class="font-semibold text-slate-800 dark:text-slate-200">Notes:</span> ${escapeHTML(entry.notes)}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function editEntry(dateStr) {
+      const entry = appData.records.find(r => r.date === dateStr);
+      if (!entry) return;
+
+      document.getElementById('log-date').value = entry.date;
+      document.getElementById('log-dosage').value = entry.dosage || '10 mg';
+      document.getElementById('log-meal').checked = !!entry.takenWithMeal;
+      document.getElementById('log-notes').value = entry.notes || '';
+
+      Object.keys(METRIC_CONFIG).forEach(key => {
+        const val = entry.scores[key] !== undefined ? entry.scores[key] : 5;
+        const input = document.getElementById(`input-${key}`);
+        if (input) {
+          input.value = val;
+          handleSliderChange(key, val);
+        }
+      });
+
+      document.getElementById('save-log-btn').querySelector('span').textContent = `Update Log for ${dateStr}`;
+      switchTab('log');
+      showToast(`Editing log for ${dateStr}`, 'info');
+    }
+    /* ==========================================================================
+       SAMPLE DATA GENERATOR (STARTING SEPTEMBER 29, 2026)
+       ========================================================================== */
+
+    function loadSampleData() {
+      // 3 realistic titration startup records starting specifically on Sept 29, 2026
+      const sample = [
+        {
+          date: '2026-09-29',
+          dosage: '10 mg',
+          takenWithMeal: true,
+          notes: 'First day starting 10mg vilazodone. Took with peanut butter toast and eggs. Stomach cramping and loose stool after 90 minutes. Mild headache and activation buzz in the evening.',
+          scores: {
+            gastro: 3,
+            irritability: 4,
+            activation: 4,
+            restlessness: 4,
+            sleep: 3,
+            depression: 3,
+            anxiety: 3,
+            rumination: 3,
+            motivation: 3
+          },
+          updatedAt: new Date().toISOString()
+        },
+        {
+          date: '2026-09-30',
+          dosage: '10 mg',
+          takenWithMeal: true,
+          notes: 'Day 2 of 10mg. Took dose with substantial breakfast bowl. GI nausea much milder than yesterday. Mild restlessness when sitting at desk, but mood felt slightly calmer in afternoon.',
+          scores: {
+            gastro: 4,
+            irritability: 5,
+            activation: 4,
+            restlessness: 4,
+            sleep: 4,
+            depression: 4,
+            anxiety: 4,
+            rumination: 4,
+            motivation: 4
+          },
+          updatedAt: new Date().toISOString()
+        },
+        {
+          date: '2026-10-01',
+          dosage: '10 mg',
+          takenWithMeal: true,
+          notes: 'Day 3 on 10mg. Gut settling down nicely with full meal. Slept 6.5 hours with vivid dreams. Jitteriness has transitioned to smooth alertness. Mental rumination slightly quieter.',
+          scores: {
+            gastro: 5,
+            irritability: 6,
+            activation: 5,
+            restlessness: 5,
+            sleep: 5,
+            depression: 5,
+            anxiety: 5,
+            rumination: 5,
+            motivation: 4
+          },
+          updatedAt: new Date().toISOString()
+        }
+      ];
+
+      appData.records = sanitizeRecords(sample);
+      saveRecordsToStorage();
+      showToast('Loaded Sept 29+ titration startup data!', 'success');
+      switchTab('trends');
+    }
+
+    /* ==========================================================================
+       DATA EXPORT
+       ========================================================================== */
+
+    function exportToCSV() {
+      if (appData.records.length === 0) {
+        showToast('No records available to export.', 'info');
+        return;
+      }
+
+      const headers = [
+        'Date', 'Dosage', 'Taken_With_Meal',
+        'Gastro_Issues', 'Irritability', 'Activation', 'Restlessness', 'Sleep_Quality',
+        'Depression_Mood', 'Anxiety', 'Rumination', 'Motivation', 'Notes'
+      ];
+
+      const rows = appData.records.map(r => [
+        r.date,
+        `"${r.dosage || ''}"`,
+        r.takenWithMeal ? 'Yes' : 'No',
+        r.scores.gastro || '',
+        r.scores.irritability || '',
+        r.scores.activation || '',
+        r.scores.restlessness || '',
+        r.scores.sleep || '',
+        r.scores.depression || '',
+        r.scores.anxiety || '',
+        r.scores.rumination || '',
+        r.scores.motivation || '',
+        `"${(r.notes || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `vilazodone_tracker_export_${getTodayDateString()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('CSV downloaded successfully!', 'success');
+    }
+
+    function exportToJSON() {
+      if (appData.records.length === 0) {
+        showToast('No records available to export.', 'info');
+        return;
+      }
+
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appData.records, null, 2));
+      const link = document.createElement('a');
+      link.setAttribute('href', dataStr);
+      link.setAttribute('download', `vilazodone_tracker_backup_${getTodayDateString()}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('JSON backup downloaded!', 'success');
+    }
+
+    /* ==========================================================================
+       MODAL & TOAST NOTIFICATIONS
+       ========================================================================== */
+
+    let modalActionCallback = null;
+
+    function openModal(type, targetParam) {
+      const modal = document.getElementById('custom-modal');
+      const title = document.getElementById('modal-title');
+      const desc = document.getElementById('modal-desc');
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+
+      if (type === 'clearAll') {
+        title.textContent = 'Erase All Medication Records?';
+        desc.textContent = 'This will permanently remove all tracked logs, charts, and journal entries from your browser storage.';
+        confirmBtn.textContent = 'Yes, Delete Everything';
+        modalActionCallback = () => {
+          appData.records = [];
+          saveRecordsToStorage();
+          resetFormToDefaults();
+          renderHistoryList();
+          renderAllCharts();
+          closeModal();
+          showToast('All records permanently erased.', 'info');
+        };
+      } else if (type === 'deleteEntry') {
+        title.textContent = `Delete Entry for ${targetParam}?`;
+        desc.textContent = 'This specific daily entry will be removed from your logs and charts.';
+        confirmBtn.textContent = 'Delete Entry';
+        modalActionCallback = () => {
+          appData.records = appData.records.filter(r => r.date !== targetParam);
+          saveRecordsToStorage();
+          renderHistoryList();
+          renderAllCharts();
+          closeModal();
+          showToast(`Entry for ${targetParam} deleted.`, 'info');
+        };
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('custom-modal');
+      modal.classList.add('hidden');
+      modalActionCallback = null;
+    }
+
+    document.getElementById('modal-confirm-btn').addEventListener('click', () => {
+      if (typeof modalActionCallback === 'function') {
+        modalActionCallback();
+      }
+    });
+
+    function confirmDeleteEntry(dateStr) {
+      openModal('deleteEntry', dateStr);
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const bgColors = {
+        success: 'bg-emerald-600 text-white',
+        error: 'bg-rose-600 text-white',
+        info: 'bg-slate-800 dark:bg-slate-700 text-white'
+      };
+
+      toast.className = `p-3.5 rounded-xl shadow-lg flex items-center justify-between gap-3 text-xs font-semibold ${bgColors[type] || bgColors.info} animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-auto border border-slate-700/50`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'}" class="w-4 h-4 shrink-0"></i>
+          <span>${message}</span>
+        </div>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    /* ==========================================================================
+       APP INITIALIZATION
+       ========================================================================== */
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      initializeSliders();
+      loadRecordsFromStorage();
+      resetFormToDefaults();
+
+      if (appData.records.length === 0) {
+        loadSampleData();
+      } else {
+        renderHistoryList();
+        renderAllCharts();
+      }
+
+      lucide.createIcons();
+    });
+
+  </script>
+</body>
+</html>
